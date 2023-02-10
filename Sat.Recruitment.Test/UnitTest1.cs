@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using AutoFixture.Xunit2;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -39,6 +40,9 @@ namespace Sat.Recruitment.Test
         }
 
 
+
+
+
         [Theory, AutoData]
         
         public async void WhenServiceResponseisCorrectfullControllerResponseis200(User user, List<User> users, string textPath )
@@ -71,39 +75,20 @@ namespace Sat.Recruitment.Test
             Assert.IsType<Microsoft.AspNetCore.Mvc.OkResult>(result);
         }
 
+
+
+
         [Theory, AutoData]
         public async void WhenTryingtoCreateaDuplicateUserServiceThrowsAnException( User user )
         {
 
-            var args = new List<string>().ToArray();
+            //Arrange 
 
-            var hostBuilder = new HostBuilder() 
-
-                 
-
-        .ConfigureWebHost(webHost =>
-        {
-            
-            webHost.UseTestServer();
-            webHost.UseStartup<Sat.Recruitment.Api.Startup>(); 
-
-        }).ConfigureAppConfiguration((hostContext, configApp) =>
-        {
-            configApp.AddJsonFile("appsettings.json", optional: true);
-            configApp.AddJsonFile(
-               $"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json",
-               optional: true);
-            configApp.AddEnvironmentVariables(prefix: "PREFIX_");
-            configApp.AddCommandLine(args);
-        }) 
-
-        ;
             user.Name = "Juan";
-            user.Email = "Jdd@gmail.com";
 
-             
-            var host = await hostBuilder.StartAsync();
-            
+            user.Email = "Jdd@gmail.com"; 
+
+            var host = await this.CreateHost(); 
            
             var client = host.GetTestClient();
              
@@ -111,14 +96,129 @@ namespace Sat.Recruitment.Test
 
             HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, "/Recruitment/users");
 
-            message.Content = content;
+            message.Content = content; 
+
+
             // Act
             var response = await client.SendAsync(message);
+
+
 
             // Assert
             var responseString =  JsonConvert.DeserializeObject<HttpResponseC>(await response.Content.ReadAsStringAsync());
             Assert.Equal ("Usuario con Nombre Duplicado", responseString.title); 
             
+        }
+
+
+
+
+        [Theory, AutoData]
+        public async void WhenTryingtoCreateaBadEmailUserServiceThrowsAnException(User user)
+        {
+
+            //Arrange 
+
+            user.Name = "Jose";
+
+            user.Email = "Jddgmail.com";
+
+            var host = await this.CreateHost();
+
+            var client = host.GetTestClient();
+
+            var content = new StringContent(JsonConvert.SerializeObject(user), System.Text.Encoding.UTF8, "application/json");
+
+            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, "/Recruitment/users");
+
+            message.Content = content;
+
+
+            // Act
+            var response = await client.SendAsync(message);
+
+
+
+            // Assert
+            var responseString = JsonConvert.DeserializeObject<HttpResponseC>(await response.Content.ReadAsStringAsync());
+            Assert.Equal("Email no Valido", responseString.title);
+
+        }
+
+
+
+
+
+
+        [Theory, AutoData]
+        public async void WhenTryingtoCreateaIncompleteUserServiceThrowsAnException(UserIncomplete user)
+        {
+
+            //Arrange 
+
+            
+
+            user.Email = "Jddgmail.com";
+
+            var host = await this.CreateHost();
+
+            var client = host.GetTestClient();
+
+            var content = new StringContent(JsonConvert.SerializeObject(user), System.Text.Encoding.UTF8, "application/json");
+
+            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, "/Recruitment/users");
+
+            message.Content = content;
+
+
+            // Act
+            var response = await client.SendAsync(message);
+
+
+
+            // Assert
+            var responseString = JsonConvert.DeserializeObject<HttpResponseC>(await response.Content.ReadAsStringAsync());
+            Assert.Equal("One or more validation errors occurred.", responseString.title);
+            Assert.Equal(400, responseString.status);
+        }
+
+
+
+
+
+
+
+
+
+        private async  Task<IHost> CreateHost()
+        {
+
+            var args = new List<string>().ToArray();
+
+            var hostBuilder = new HostBuilder() 
+           
+
+                                
+                               .ConfigureWebHost(webHost =>
+                               { 
+                                   webHost.UseTestServer();
+                                   webHost.UseStartup<Sat.Recruitment.Api.Startup>();
+
+                               }).ConfigureAppConfiguration((hostContext, configApp) =>
+                               {
+                                   configApp.AddJsonFile("appsettings.json", optional: true);
+                                   configApp.AddJsonFile(
+                                      $"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json",
+                                      optional: true);
+                                   configApp.AddEnvironmentVariables(prefix: "PREFIX_");
+                                   configApp.AddCommandLine(args);
+                               })
+                               
+                               ;
+
+            
+
+            return await   hostBuilder.StartAsync();  
         }
     }
 }
